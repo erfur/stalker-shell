@@ -1,5 +1,3 @@
-import { NONAME } from "dns";
-import { FormatInputPathObject } from "path";
 import { log } from "./logger";
 
 export class TracerAgent {

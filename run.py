@@ -83,6 +83,14 @@ class StalkerApi:
             case _:
                 logger.warning("need address to intercept")
 
+    def _cmd_logmodule(self, *args):
+        match args:
+            case [filename]:
+                with open(filename) as f:
+                    self.api.logmodule(f.read())
+            case _:
+                logger.warning("need json file")
+
     def _cmd_maps(self, *args):
         logger.info(pp.pformat(self.api.maps()))
 

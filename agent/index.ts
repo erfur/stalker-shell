@@ -8,7 +8,11 @@ let interceptor = new InterceptorAgent();
 rpc.exports = {
 
     logaddr(addr: string) {
-        interceptor.logAddr(addr);
+        interceptor.logAddr(ptr(addr));
+    },
+
+    logmodule(addrjson: string) {
+        interceptor.logModule(JSON.parse(addrjson));
     },
 
     maps() {
