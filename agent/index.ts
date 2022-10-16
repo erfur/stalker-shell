@@ -1,18 +1,29 @@
 import { log } from "./logger";
 import { TracerAgent } from "./stalker";
 import { InterceptorAgent } from "./interceptor";
+import { Patches } from "./patch";
 
 let tracer = new TracerAgent();
 let interceptor = new InterceptorAgent();
+// let patches = new Patches();
 
 rpc.exports = {
 
-    logaddr(addr: string) {
-        interceptor.logAddr(ptr(addr));
+    // decommissioned for now
+    // logaddr(addr: string) {
+    //     interceptor.logAddr(ptr(addr));
+    // },
+
+    debug() {
+        log.toggleDebug();
     },
 
     logmodule(addrjson: string) {
         interceptor.logModule(JSON.parse(addrjson));
+    },
+
+    moduleresults() {
+        return interceptor.stats.stats;
     },
 
     maps() {

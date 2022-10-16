@@ -1,4 +1,16 @@
 class Logger {
+    isDebug: boolean = false;
+
+    toggleDebug() {
+        this.isDebug = !this.isDebug;
+    }
+
+    debug(message: string): void {
+        if (this.isDebug) {
+            this.info(message);
+        }
+    }
+
     info(message: string): void {
         send({
             type: "info",

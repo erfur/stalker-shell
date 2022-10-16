@@ -35,8 +35,16 @@ def on_message(message, data):
         case _:
             logger.info('unknown message type: %s' % pp.pformat(message))
 
+def save_json(fname, data):
+    with open(fname, 'w') as f:
+        json.dump(data, f)
+        logger.info(f"saved json in file {fname}")
 
-def save_binary(data, maps):
+def save_interceptor_trace(data):
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    save_json(f'interceptor-{timestamp}-trace.json', data)
+
+def save_stalker_trace(data, maps):
     logger.debug(pp.pformat(data))
     final_data = {}
     for tid, cache in data:
@@ -49,13 +57,8 @@ def save_binary(data, maps):
     fname_trace = f'stalker-{timestamp}-trace.json'
     fname_maps = f'stalker-{timestamp}-maps.json'
 
-    with open(fname_trace, 'w') as f:
-        json.dump(final_data, f)
-        logger.info(f"saved in file {fname_trace}")
-
-    with open(fname_maps, 'w') as f:
-        json.dump(maps, f)
-        logger.info(f'saved maps in file {fname_maps}')
+    save_json(fname_trace, final_data)
+    save_json(fname_maps, maps)
 
 
 class StalkerApi:
@@ -73,15 +76,20 @@ class StalkerApi:
     def __call__(self, *args: any, **kwargs: any) -> any:
         if args and args[0] in self.cmds:
             self.__class__.__dict__[self.api_prefix+args[0]](self, *args[1:])
+        elif args[0]:
+            logger.warning(f"invalid cmd: {args[0]}")
         else:
-            logger.warning("invalid cmd")
+            pass
 
-    def _cmd_logaddr(self, *args):
-        match args:
-            case [addr]:
-                self.api.logaddr(addr)
-            case _:
-                logger.warning("need address to intercept")
+    # def _cmd_logaddr(self, *args):
+    #     match args:
+    #         case [addr]:
+    #             self.api.logaddr(addr)
+    #         case _:
+    #             logger.warning("need address to intercept")
+
+    def _cmd_debug(self, *args):
+        self.api.debug()
 
     def _cmd_logmodule(self, *args):
         match args:
@@ -90,6 +98,9 @@ class StalkerApi:
                     self.api.logmodule(f.read())
             case _:
                 logger.warning("need json file")
+
+    def _cmd_moduleresults(self, *args):
+        save_interceptor_trace(self.api.moduleresults())
 
     def _cmd_maps(self, *args):
         logger.info(pp.pformat(self.api.maps()))
@@ -106,7 +117,7 @@ class StalkerApi:
 
     def _cmd_stalkinterval(self, delay, interval, *args):
         self.api.stalkinterval(float(delay), float(interval))
-    
+
     def _cmd_stalkaddr(self, addr, *args):
         if '+' in addr:
             module, addr = addr.split('+')
@@ -122,7 +133,7 @@ class StalkerApi:
                 self.api.unstalk()
 
     def _cmd_save(self, *args):
-        save_binary(self.api.results(), self.api.maps())
+        save_stalker_trace(self.api.results(), self.api.maps())
 
     def _cmd_reset(self, *args):
         self.api.reset()
@@ -139,8 +150,9 @@ def main(target_process):
         pid = int(target_process)
     except ValueError:
         is_spawn = True
-        pid = device.spawn(target_process)
-        logger.info('spawned app with pid %d' % pid)
+        # pid = device.spawn(target_process)
+        pid = device.get_process(target_process).pid
+        logger.info(f'attaching to {target_process} with pid {pid}')
 
     session = device.attach(pid)
 
@@ -155,8 +167,8 @@ def main(target_process):
 
     api = StalkerApi(script.exports)
 
-    if is_spawn:
-        device.resume(pid)
+    # if is_spawn:
+    #     device.resume(pid)
 
     repl(api)
 
@@ -187,16 +199,18 @@ def repl(api: StalkerApi):
     #     def get_completions(self, document, complete_event):
     #         yield Completion('completion', start_position=0)
 
-    try:
-        while True:
+    while True:
+        try:
             text = session.prompt('>> ', completer=cmd_completer)
             # text = input('>> ')
             # logger.debug(f"You entered {text}")
             api(*text.split())
-    except (KeyboardInterrupt, EOFError):
-        logger.info('exiting.')
-    except Exception as e:
-        logger.error('exception: %s' % e)
+        except (KeyboardInterrupt, EOFError):
+            logger.info('exiting.')
+            break
+        except Exception as e:
+            logger.error('exception: %s' % e)
+            continue
 
 
 if __name__ == '__main__':
